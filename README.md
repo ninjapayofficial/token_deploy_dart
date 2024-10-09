@@ -3,6 +3,15 @@
 A new Flutter project.
 
 ## Getting Started
+nft_deployment_flutter/
+├── lib/
+│   ├── main.dart
+│   └── thirdweb_bindings.dart
+├── pubspec.yaml
+└── web/
+    ├── index.html
+    └── thirdweb.js
+
 
 This project is a starting point for a Flutter application.
 
