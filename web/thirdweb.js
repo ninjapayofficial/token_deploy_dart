@@ -1,24 +1,28 @@
 // web/thirdweb.js
 
-let sdkInstance = null;
-
-// **⚠️ Security Warning:**  
-// Do **NOT** expose your SECRET_KEY in production. This is insecure and for demonstration only.
-const CLIENT_ID = 'YOUR_THIRDWEB_CLIENT_ID'; // Replace with your Thirdweb Client ID
-const SECRET_KEY = 'YOUR_THIRDWEB_SECRET_KEY'; // Replace with your Thirdweb Secret Key
+// Import ThirdwebSDK and ethers
+import { ThirdwebSDK } from 'https://esm.sh/@thirdweb-dev/sdk@4.0.99?bundle';
+import { ethers } from 'https://esm.sh/ethers@5.7.2';
 
 // Function to initialize Thirdweb SDK
-window.initializeSDK = function() {
-  console.log('Initializing SDK...');
+window.initializeSDK = async function() {
+  console.log('Initializing Thirdweb SDK...');
   if (window.ethereum && window.ethers && window.ThirdwebSDK) {
     try {
-      const provider = new window.ethers.providers.Web3Provider(window.ethereum);
+      // Request account access if needed
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+      // Create an ethers provider
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
-      sdkInstance = new window.ThirdwebSDK(signer, {
-        clientId: CLIENT_ID,
-        secretKey: SECRET_KEY
+
+      // Initialize Thirdweb SDK with the signer
+      const sdk = new ThirdwebSDK(signer, {
+        chainId: await signer.getChainId(),
       });
-      console.log('Thirdweb SDK initialized.', sdkInstance);
+
+      window.sdkInstance = sdk;
+      console.log('Thirdweb SDK initialized with signer:', sdk);
       return true;
     } catch (error) {
       console.error('Error initializing Thirdweb SDK:', error);
@@ -72,12 +76,19 @@ window.connectWallet = async function() {
   }
 
   try {
-    await window.ethereum.request({ method: 'eth_requestAccounts' });
-    const provider = new window.ethers.providers.Web3Provider(window.ethereum);
-    const network = await provider.getNetwork();
-    const account = await provider.getSigner().getAddress();
-    console.log('Wallet connected:', account, 'on network:', network.name);
-    return { success: true, account: account, network: network.name };
+    // Initialize SDK
+    const initialized = await window.initializeSDK();
+    if (!initialized) {
+      return { success: false, message: 'SDK initialization failed.' };
+    }
+
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    const account = await signer.getAddress();
+    const network = await signer.getChainId();
+
+    console.log('Wallet connected:', account, 'on network:', network);
+    return { success: true, account: account, network: network };
   } catch (error) {
     console.error('Error connecting wallet:', error);
     return { success: false, message: error.message || 'Unknown error.' };
@@ -87,11 +98,9 @@ window.connectWallet = async function() {
 // Function to deploy NFT Collection
 window.deployNFT = async function(name, symbol, network) {
   console.log(`Deploying NFT Collection: Name=${name}, Symbol=${symbol}, Network=${network}`);
-  if (!sdkInstance) {
-    const initialized = window.initializeSDK();
-    if (!initialized) {
-      return { success: false, message: 'SDK initialization failed.' };
-    }
+  if (!window.sdkInstance) {
+    console.error('SDK instance not initialized.');
+    return { success: false, message: 'SDK not initialized.' };
   }
 
   const networkConfigs = {
@@ -112,21 +121,20 @@ window.deployNFT = async function(name, symbol, network) {
   }
 
   try {
-    // Re-initialize SDK with selected network
-    sdkInstance = new window.ThirdwebSDK(new window.ethers.Wallet(SECRET_KEY), selectedNetwork.rpcUrl);
-    console.log('Thirdweb SDK re-initialized with network:', network);
+    // Switch network if necessary
+    await window.switchNetwork(network);
 
-    // Deploy the NFT Collection Contract
-    const contractAddress = await sdkInstance.deployer.deployBuiltInContract(
+    // Deploy the NFT Collection Contract using Thirdweb SDK
+    const contractAddress = await window.sdkInstance.deployer.deployBuiltInContract(
       "nft-collection",
       {
         name: name,
         symbol: symbol,
-        primary_sale_recipient: window.ethers.constants.AddressZero,
+        primary_sale_recipient: ethers.constants.AddressZero,
         image: "https://example.com/your-image.png",
         description: "This is Nin Token",
         external_link: "https://ninjapay.in",
-        platform_fee_recipient: window.ethers.constants.AddressZero,
+        platform_fee_recipient: ethers.constants.AddressZero,
         platform_fee_basis_points: 100 // 1%
       },
       "5.0.2", // Specify the version

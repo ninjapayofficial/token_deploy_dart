@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:js/js.dart';
 import 'thirdweb_bindings.dart';
 
 void main() {
@@ -40,8 +41,7 @@ class _DeploymentHomePageState extends State<DeploymentHomePage> {
   @override
   void initState() {
     super.initState();
-    // Initialize the SDK on app start
-    initializeSDK();
+    // No need to initialize SDK here as it will be handled in connectWallet
   }
 
   Future<void> connectWalletFunction() async {
@@ -51,14 +51,17 @@ class _DeploymentHomePageState extends State<DeploymentHomePage> {
         setState(() {
           _isConnected = true;
           _walletAddress = response.account ?? '';
-          _currentNetwork = response.network ?? '';
+          _currentNetwork = _selectedNetwork; // Assuming network switch was successful
         });
         Fluttertoast.showToast(msg: '✅ Wallet connected');
+        print('Wallet connected: $_walletAddress on network: $_currentNetwork');
       } else {
         Fluttertoast.showToast(msg: '❌ ${response.message}');
+        print('Wallet connection failed: ${response.message}');
       }
     } catch (e) {
       Fluttertoast.showToast(msg: '❌ Error: $e');
+      print('Exception during wallet connection: $e');
     }
   }
 
@@ -70,11 +73,14 @@ class _DeploymentHomePageState extends State<DeploymentHomePage> {
           _currentNetwork = _selectedNetwork;
         });
         Fluttertoast.showToast(msg: '🌐 Switched to $_selectedNetwork');
+        print('Switched to network: $_selectedNetwork');
       } else {
         Fluttertoast.showToast(msg: '❌ Failed to switch network');
+        print('Network switch failed.');
       }
     } catch (e) {
       Fluttertoast.showToast(msg: '❌ Error: $e');
+      print('Exception during network switch: $e');
     }
   }
 
@@ -100,17 +106,21 @@ class _DeploymentHomePageState extends State<DeploymentHomePage> {
               '🎉 Contract deployed to: ${response.contractAddress}\n🔗 View on Etherscan: ${response.etherscanLink}';
         });
         Fluttertoast.showToast(msg: '🎉 NFT Deployed Successfully');
+        print('NFT deployed to: ${response.contractAddress}');
+        print('Etherscan link: ${response.etherscanLink}');
       } else {
         setState(() {
           _deployMessage = '❌ Deployment Error: ${response.message}';
         });
         Fluttertoast.showToast(msg: '❌ Deployment Failed');
+        print('Deployment failed: ${response.message}');
       }
     } catch (e) {
       setState(() {
         _deployMessage = '❌ An error occurred: $e';
       });
       Fluttertoast.showToast(msg: '❌ Deployment Failed');
+      print('Exception during NFT deployment: $e');
     } finally {
       setState(() {
         _isDeploying = false;
@@ -155,6 +165,7 @@ class _DeploymentHomePageState extends State<DeploymentHomePage> {
                   setState(() {
                     _selectedNetwork = newValue!;
                   });
+                  print('Selected network changed to: $_selectedNetwork');
                 },
               ),
               SizedBox(height: 20),
@@ -167,7 +178,8 @@ class _DeploymentHomePageState extends State<DeploymentHomePage> {
                         await switchEthereumNetworkFunction();
                         await connectWalletFunction();
                       },
-                child: Text(_isConnected ? 'Wallet Connected' : 'Connect Wallet'),
+                child:
+                    Text(_isConnected ? 'Wallet Connected' : 'Connect Wallet'),
               ),
               SizedBox(height: 20),
 
@@ -218,11 +230,7 @@ class _DeploymentHomePageState extends State<DeploymentHomePage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _isDeploying
-                        ? null
-                        : () async {
-                            await deployNFTFunction();
-                          },
+                    onPressed: _isDeploying ? null : () async => await deployNFTFunction(),
                     child: _isDeploying
                         ? SizedBox(
                             width: 24,
