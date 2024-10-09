@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flutter NFT Deployment</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script type="module">
+    import { ThirdwebSDK } from 'https://esm.sh/@thirdweb-dev/sdk@4.0.99?bundle';
+
+    let provider;
+    let signer;
+    let sdk;
+
+    // Function to connect MetaMask
+    window.connectMetamask = async function () {
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          await window.ethereum.request({ method: 'eth_requestAccounts' });
+          provider = new ethers.providers.Web3Provider(window.ethereum);
+          signer = provider.getSigner();
+          sdk = new ThirdwebSDK(signer);
+          return await signer.getAddress();
+        } catch (error) {
+          console.error('Error connecting wallet:', error);
+          return null;
+        }
+      } else {
+        alert('MetaMask is not installed!');
+        return null;
+      }
+    };
+
+    // Function to deploy NFT
+    window.deployNFT = async function (name, symbol) {
+      if (!sdk) {
+        console.error('SDK is not initialized, please connect wallet first.');
+        return 'SDK not initialized';
+      }
+
+      try {
+        const contractAddress = await sdk.deployer.deployBuiltInContract(
+          "nft-collection",
+          {
+            name: name,
+            symbol: symbol,
+            primary_sale_recipient: ethers.constants.AddressZero,
+            image: "https://example.com/your-image.png",
+            description: "This is Nin Token",
+            external_link: "https://ninjapay.in",
+            platform_fee_recipient: ethers.constants.AddressZero,
+            platform_fee_basis_points: 100, // 1%
+          },
+          "5.0.2",
+          {
+            gasLimit: 5000000,
+          }
+        );
+
+        console.log("NFT Contract deployed to:", contractAddress);
+        return contractAddress;
+      } catch (error) {
+        console.error('Error deploying contract:', error);
+        return `Deployment Error: ${error.message}`;
+      }
+    };
+  </script>
+</head>
+<body>
+  <h2>Deploy NFT Page</h2>
+  <p>Loading...</p>
+</body>
+</html>

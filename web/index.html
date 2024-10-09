@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>NFT Deployment Flutter App</title>
+  <base href="/">
+
+  <!-- Responsive Meta Tag -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <!-- Ethers.js via esm.sh as a module -->
+  <script type="module">
+    import { ethers } from 'https://esm.sh/ethers@5.7.2';
+    window.ethers = ethers;
+    console.log('Ethers.js loaded:', window.ethers);
+  </script>
+
+  <!-- Thirdweb SDK via esm.sh -->
+  <script type="module">
+    import { ThirdwebSDK } from 'https://esm.sh/@thirdweb-dev/sdk@4.0.99?bundle';
+    window.ThirdwebSDK = ThirdwebSDK;
+    console.log('ThirdwebSDK loaded:', window.ThirdwebSDK);
+  </script>
+
+
+
+  <!-- Custom JavaScript for Thirdweb Operations -->
+  <script type="module" src="thirdweb.js"></script>
+</head>
+<body>
+  <script src="main.dart.js" type="application/javascript"></script>
+</body>
+</html>
