@@ -46,6 +46,8 @@
 
 // lib/thirdweb_bindings.dart
 
+// lib/thirdweb_bindings.dart
+
 import 'dart:js_util' as js_util;
 
 /// Initializes the Thirdweb SDK by calling the JavaScript function.
@@ -70,5 +72,15 @@ Future<dynamic> deployNFT(String name, String symbol, String network) async {
   return await js_util.promiseToFuture<dynamic>(
     js_util
         .callMethod(js_util.globalThis, 'deployNFT', [name, symbol, network]),
+  );
+}
+
+/// Deploys an ERC-20 token by calling the JavaScript function.
+/// Returns a dynamic object containing deployment results.
+Future<dynamic> deployERC20(String name, String symbol, String initialSupply,
+    int decimals, String network) async {
+  return await js_util.promiseToFuture<dynamic>(
+    js_util.callMethod(js_util.globalThis, 'deployERC20',
+        [name, symbol, initialSupply, decimals, network]),
   );
 }

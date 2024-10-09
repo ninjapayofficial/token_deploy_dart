@@ -1,10 +1,12 @@
 // lib/main.dart
 
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:flutter_web3/flutter_web3.dart';
-import 'thirdweb_bindings.dart';
 import 'dart:js_util' as js_util;
+import 'thirdweb_bindings.dart';
 
 void main() {
   runApp(NFTDeploymentApp());
@@ -14,7 +16,7 @@ class NFTDeploymentApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'NFT Deployment',
+      title: 'Blockchain Deployment',
       theme: ThemeData(
         primarySwatch: Colors.teal,
       ),
@@ -33,17 +35,26 @@ class _DeploymentHomePageState extends State<DeploymentHomePage> {
   bool _isConnected = false;
   String _walletAddress = '';
   String _currentNetwork = '';
-  bool _isDeploying = false;
+  bool _isDeployingNFT = false;
+  bool _isDeployingERC20 = false;
   String _deployMessage = '';
 
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _symbolController = TextEditingController();
+  // Controllers for NFT
+  final TextEditingController _nftNameController = TextEditingController();
+  final TextEditingController _nftSymbolController = TextEditingController();
+
+  // Controllers for ERC-20
+  final TextEditingController _erc20NameController = TextEditingController();
+  final TextEditingController _erc20SymbolController = TextEditingController();
+  final TextEditingController _erc20InitialSupplyController =
+      TextEditingController();
+  final TextEditingController _erc20DecimalsController =
+      TextEditingController(text: '18'); // Default to 18
 
   @override
   void initState() {
     super.initState();
-    // Initialize Thirdweb SDK when the app starts
-    // Note: It's better to initialize after wallet connection
+    // Optionally, initialize Thirdweb SDK here if needed
   }
 
   /// Connects the wallet using flutter_web3 and initializes Thirdweb SDK
@@ -112,19 +123,18 @@ class _DeploymentHomePageState extends State<DeploymentHomePage> {
     }
   }
 
-  /// Deploys the NFT Collection using Thirdweb SDK
-
+  /// Deploys the NFT Collection
   Future<void> deployNFTFunction() async {
-    String name = _nameController.text.trim();
-    String symbol = _symbolController.text.trim();
+    String name = _nftNameController.text.trim();
+    String symbol = _nftSymbolController.text.trim();
 
     if (name.isEmpty || symbol.isEmpty) {
-      Fluttertoast.showToast(msg: '❌ Please enter both name and symbol');
+      Fluttertoast.showToast(msg: '❌ Please enter both NFT name and symbol');
       return;
     }
 
     setState(() {
-      _isDeploying = true;
+      _isDeployingNFT = true;
       _deployMessage = '';
     });
 
@@ -140,7 +150,7 @@ class _DeploymentHomePageState extends State<DeploymentHomePage> {
 
         setState(() {
           _deployMessage =
-              '🎉 Contract deployed to: $contractAddress\n🔗 View on Etherscan: $etherscanLink';
+              '🎉 NFT Contract deployed to: $contractAddress\n🔗 View on Etherscan: $etherscanLink';
         });
         Fluttertoast.showToast(msg: '🎉 NFT Deployed Successfully');
         print('NFT deployed to: $contractAddress');
@@ -148,20 +158,103 @@ class _DeploymentHomePageState extends State<DeploymentHomePage> {
       } else {
         String message = js_util.getProperty(response, 'message');
         setState(() {
-          _deployMessage = '❌ Deployment Error: $message';
+          _deployMessage = '❌ NFT Deployment Error: $message';
         });
-        Fluttertoast.showToast(msg: '❌ Deployment Failed');
-        print('Deployment failed: $message');
+        Fluttertoast.showToast(msg: '❌ NFT Deployment Failed');
+        print('NFT Deployment failed: $message');
       }
     } catch (e) {
       setState(() {
-        _deployMessage = '❌ An error occurred: $e';
+        _deployMessage = '❌ An error occurred during NFT deployment: $e';
       });
-      Fluttertoast.showToast(msg: '❌ Deployment Failed');
+      Fluttertoast.showToast(msg: '❌ NFT Deployment Failed');
       print('Exception during NFT deployment: $e');
     } finally {
       setState(() {
-        _isDeploying = false;
+        _isDeployingNFT = false;
+      });
+    }
+  }
+
+  /// Deploys the ERC-20 Token
+  Future<void> deployERC20Function() async {
+    String name = _erc20NameController.text.trim();
+    String symbol = _erc20SymbolController.text.trim();
+    String initialSupplyStr = _erc20InitialSupplyController.text.trim();
+    String decimalsStr = _erc20DecimalsController.text.trim();
+
+    if (name.isEmpty ||
+        symbol.isEmpty ||
+        initialSupplyStr.isEmpty ||
+        decimalsStr.isEmpty) {
+      Fluttertoast.showToast(msg: '❌ Please enter all ERC-20 token details');
+      return;
+    }
+
+    // Validate initialSupply and decimals
+    if (!RegExp(r'^\d+(\.\d+)?$').hasMatch(initialSupplyStr)) {
+      Fluttertoast.showToast(msg: '❌ Initial Supply must be a valid number');
+      return;
+    }
+
+    int decimals;
+    try {
+      decimals = int.parse(decimalsStr);
+      if (decimals < 0 || decimals > 18) {
+        Fluttertoast.showToast(msg: '❌ Decimals must be between 0 and 18');
+        return;
+      }
+    } catch (e) {
+      Fluttertoast.showToast(msg: '❌ Decimals must be a valid integer');
+      return;
+    }
+
+    // Convert initialSupply to the smallest unit based on decimals
+    // Assuming initialSupplyStr is in whole units
+    double initialSupplyDouble = double.parse(initialSupplyStr);
+    BigInt initialSupply = BigInt.from(
+        initialSupplyDouble * (pow(10, decimals) as double).toInt());
+
+    setState(() {
+      _isDeployingERC20 = true;
+      _deployMessage = '';
+    });
+
+    try {
+      var response = await deployERC20(
+          name, symbol, initialSupply.toString(), decimals, _selectedNetwork);
+
+      // Extract properties using js_util.getProperty
+      bool success = js_util.getProperty(response, 'success');
+      if (success) {
+        String contractAddress =
+            js_util.getProperty(response, 'contractAddress');
+        String etherscanLink = js_util.getProperty(response, 'etherscanLink');
+
+        setState(() {
+          _deployMessage +=
+              '\n🎉 ERC-20 Token Contract deployed to: $contractAddress\n🔗 View on Etherscan: $etherscanLink';
+        });
+        Fluttertoast.showToast(msg: '🎉 ERC-20 Token Deployed Successfully');
+        print('ERC-20 Token deployed to: $contractAddress');
+        print('Etherscan link: $etherscanLink');
+      } else {
+        String message = js_util.getProperty(response, 'message');
+        setState(() {
+          _deployMessage += '\n❌ ERC-20 Deployment Error: $message';
+        });
+        Fluttertoast.showToast(msg: '❌ ERC-20 Deployment Failed');
+        print('ERC-20 Deployment failed: $message');
+      }
+    } catch (e) {
+      setState(() {
+        _deployMessage += '\n❌ An error occurred during ERC-20 deployment: $e';
+      });
+      Fluttertoast.showToast(msg: '❌ ERC-20 Deployment Failed');
+      print('Exception during ERC-20 deployment: $e');
+    } finally {
+      setState(() {
+        _isDeployingERC20 = false;
       });
     }
   }
@@ -182,7 +275,7 @@ class _DeploymentHomePageState extends State<DeploymentHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: Text('Deploy NFT'),
+          title: Text('Blockchain Deployment'),
         ),
         body: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -192,7 +285,7 @@ class _DeploymentHomePageState extends State<DeploymentHomePage> {
             children: [
               // Instructions
               Text(
-                'Please select the network, connect your wallet, and deploy your NFT.',
+                'Select a network, connect your wallet, and deploy your NFT or ERC-20 token.',
                 style: TextStyle(fontSize: 16),
               ),
               SizedBox(height: 20),
@@ -256,7 +349,7 @@ class _DeploymentHomePageState extends State<DeploymentHomePage> {
 
               SizedBox(height: 20),
 
-              // Deploy Form
+              // NFT Deployment Section
               if (_isConnected) ...[
                 Text(
                   'Deploy NFT Collection:',
@@ -264,17 +357,17 @@ class _DeploymentHomePageState extends State<DeploymentHomePage> {
                 ),
                 SizedBox(height: 10),
                 TextField(
-                  controller: _nameController,
+                  controller: _nftNameController,
                   decoration: InputDecoration(
-                    labelText: 'Token Name',
+                    labelText: 'NFT Token Name',
                     border: OutlineInputBorder(),
                   ),
                 ),
                 SizedBox(height: 10),
                 TextField(
-                  controller: _symbolController,
+                  controller: _nftSymbolController,
                   decoration: InputDecoration(
-                    labelText: 'Token Symbol',
+                    labelText: 'NFT Token Symbol',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -282,12 +375,12 @@ class _DeploymentHomePageState extends State<DeploymentHomePage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _isDeploying
+                    onPressed: _isDeployingNFT || _isDeployingERC20
                         ? null
                         : () async {
                             await deployNFTFunction();
                           },
-                    child: _isDeploying
+                    child: _isDeployingNFT
                         ? SizedBox(
                             width: 24,
                             height: 24,
@@ -296,15 +389,79 @@ class _DeploymentHomePageState extends State<DeploymentHomePage> {
                               strokeWidth: 2,
                             ),
                           )
-                        : Text('Deploy'),
+                        : Text('Deploy NFT'),
+                  ),
+                ),
+                SizedBox(height: 40),
+
+                // ERC-20 Deployment Section
+                Text(
+                  'Deploy ERC-20 Token:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                SizedBox(height: 10),
+                TextField(
+                  controller: _erc20NameController,
+                  decoration: InputDecoration(
+                    labelText: 'ERC-20 Token Name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 10),
+                TextField(
+                  controller: _erc20SymbolController,
+                  decoration: InputDecoration(
+                    labelText: 'ERC-20 Token Symbol',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                SizedBox(height: 10),
+                TextField(
+                  controller: _erc20InitialSupplyController,
+                  decoration: InputDecoration(
+                    labelText: 'Initial Supply',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                ),
+                SizedBox(height: 10),
+                TextField(
+                  controller: _erc20DecimalsController,
+                  decoration: InputDecoration(
+                    labelText: 'Decimals',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isDeployingERC20 || _isDeployingNFT
+                        ? null
+                        : () async {
+                            await deployERC20Function();
+                          },
+                    child: _isDeployingERC20
+                        ? SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text('Deploy ERC-20 Token'),
                   ),
                 ),
                 SizedBox(height: 20),
+
+                // Deployment Messages
                 if (_deployMessage.isNotEmpty)
                   Text(
                     _deployMessage,
                     style: TextStyle(
-                      color: _deployMessage.startsWith('🎉')
+                      color: _deployMessage.contains('🎉')
                           ? Colors.green
                           : Colors.red,
                       fontSize: 16,

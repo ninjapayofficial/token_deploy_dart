@@ -130,3 +130,71 @@ window.deployNFT = async function(name, symbol, network) {
     return { success: false, message: errorMessage };
   }
 };
+
+// web/thirdweb.js
+
+// Existing code...
+
+// Function to deploy ERC-20 Token
+window.deployERC20 = async function(name, symbol, initialSupply, decimals, network) {
+  console.log(`Deploying ERC-20 Token: Name=${name}, Symbol=${symbol}, Initial Supply=${initialSupply}, Decimals=${decimals}, Network=${network}`);
+  
+  if (!window.thirdwebSDK) {
+    console.error('Thirdweb SDK is not initialized. Call initializeThirdweb first.');
+    return { success: false, message: 'SDK not initialized.' };
+  }
+
+  const networkConfigs = {
+    sepolia: {
+      rpcUrl: 'https://rpc.ankr.com/eth_sepolia',
+      etherscan: 'https://sepolia.etherscan.io/address/'
+    },
+    mainnet: {
+      rpcUrl: 'https://rpc.ankr.com/eth',
+      etherscan: 'https://etherscan.io/address/'
+    },
+    // Add more networks as needed
+  };
+
+  const selectedNetwork = networkConfigs[network.toLowerCase()];
+  if (!selectedNetwork) {
+    return { success: false, message: 'Unsupported network selected.' };
+  }
+
+  try {
+    // Switch network if necessary
+    await window.switchNetwork(network);
+
+    // Deploy the ERC-20 Token Contract using Thirdweb SDK
+    const contractAddress = await window.thirdwebSDK.deployer.deployBuiltInContract(
+      "token",
+      {
+        name: name,
+        symbol: symbol,
+        primary_sale_recipient: window.ethers.constants.AddressZero,
+        total_supply: initialSupply, // Total supply in smallest unit (consider decimals)
+        decimals: decimals,
+        image: "https://file.notion.so/f/f/87ea3c95-99bf-4229-adac-65d62c260eae/ab92621b-1e16-4803-a21d-0e7169903f8e/NINQR_1.png?id=f6291680-5551-4170-9e3e-0c5e05e09cf7&table=block&spaceId=87ea3c95-99bf-4229-adac-65d62c260eae&expirationTimestamp=1720360800000&signature=h1596NAZEAFgAW5kd9y4PuB3dfnokRMDeC9zBJX5iTQ&downloadName=NINQR+1.png", // Replace with your token image URL
+        description: "This is your ERC-20 Token", // Replace with your token description
+        external_link: "https://ninjapay.in", // Replace with your external link
+        platform_fee_recipient: window.ethers.constants.AddressZero,
+        platform_fee_basis_points: 100 // 1%
+      },
+      "5.0.2", // Specify the version if needed
+      {
+        gasLimit: 5000000, // Set a higher gas limit if needed
+      }
+    );
+
+    // Generate Etherscan Link
+    const etherscanLink = `${selectedNetwork.etherscan}${contractAddress}`;
+
+    console.log("ERC-20 Token Contract deployed to:", contractAddress);
+    return { success: true, contractAddress, etherscanLink };
+  } catch (error) {
+    console.error('Error deploying ERC-20 Token:', error);
+    const errorMessage = error.reason || error.message || 'Unknown error during ERC-20 deployment.';
+    return { success: false, message: errorMessage };
+  }
+};
+
