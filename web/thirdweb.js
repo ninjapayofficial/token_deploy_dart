@@ -1,11 +1,12 @@
 // web/thirdweb.js
 
-// Import ThirdwebSDK and ethers
-import { ThirdwebSDK } from 'https://esm.sh/@thirdweb-dev/sdk@4.0.99?bundle';
-import { ethers } from 'https://esm.sh/ethers@5.7.2';
+// Ensure that Ethers.js and ThirdwebSDK are loaded
+if (!window.ethers || !window.ThirdwebSDK) {
+  console.error('Ethers.js or ThirdwebSDK not loaded.');
+}
 
 // Function to initialize Thirdweb SDK
-window.initializeSDK = async function() {
+window.initializeThirdweb = async function() {
   console.log('Initializing Thirdweb SDK...');
   if (window.ethereum && window.ethers && window.ThirdwebSDK) {
     try {
@@ -13,16 +14,18 @@ window.initializeSDK = async function() {
       await window.ethereum.request({ method: 'eth_requestAccounts' });
 
       // Create an ethers provider
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const provider = new window.ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
 
-      // Initialize Thirdweb SDK with the signer
-      const sdk = new ThirdwebSDK(signer, {
+      // Initialize Thirdweb SDK with the signer and clientId
+      const sdk = new window.ThirdwebSDK(signer, {
+        clientId: '690062c61fec9aa02c8f0d8d84e2dc99', // Replace with your actual clientId
+        secretKey: 'WA7-QDoWghPpkIgjmKWtvUGSOgzD9c06_lDqUzcEK50o_9bdGo9u5fGm1aAp7lBRqdxp0fJ74NFRWeIp0ahTiA', // Replace with your actual clientId
         chainId: await signer.getChainId(),
       });
 
-      window.sdkInstance = sdk;
-      console.log('Thirdweb SDK initialized with signer:', sdk);
+      window.thirdwebSDK = sdk;
+      console.log('Thirdweb SDK initialized:', sdk);
       return true;
     } catch (error) {
       console.error('Error initializing Thirdweb SDK:', error);
@@ -67,39 +70,12 @@ window.switchNetwork = async function(network) {
   }
 };
 
-// Function to connect wallet
-window.connectWallet = async function() {
-  console.log('Connecting wallet...');
-  if (!window.ethereum) {
-    alert('MetaMask is not installed.');
-    return { success: false, message: 'MetaMask is not installed.' };
-  }
-
-  try {
-    // Initialize SDK
-    const initialized = await window.initializeSDK();
-    if (!initialized) {
-      return { success: false, message: 'SDK initialization failed.' };
-    }
-
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-    const signer = provider.getSigner();
-    const account = await signer.getAddress();
-    const network = await signer.getChainId();
-
-    console.log('Wallet connected:', account, 'on network:', network);
-    return { success: true, account: account, network: network };
-  } catch (error) {
-    console.error('Error connecting wallet:', error);
-    return { success: false, message: error.message || 'Unknown error.' };
-  }
-};
-
 // Function to deploy NFT Collection
 window.deployNFT = async function(name, symbol, network) {
   console.log(`Deploying NFT Collection: Name=${name}, Symbol=${symbol}, Network=${network}`);
-  if (!window.sdkInstance) {
-    console.error('SDK instance not initialized.');
+  
+  if (!window.thirdwebSDK) {
+    console.error('Thirdweb SDK is not initialized. Call initializeThirdweb first.');
     return { success: false, message: 'SDK not initialized.' };
   }
 
@@ -125,16 +101,16 @@ window.deployNFT = async function(name, symbol, network) {
     await window.switchNetwork(network);
 
     // Deploy the NFT Collection Contract using Thirdweb SDK
-    const contractAddress = await window.sdkInstance.deployer.deployBuiltInContract(
+    const contractAddress = await window.thirdwebSDK.deployer.deployBuiltInContract(
       "nft-collection",
       {
         name: name,
         symbol: symbol,
-        primary_sale_recipient: ethers.constants.AddressZero,
-        image: "https://example.com/your-image.png",
-        description: "This is Nin Token",
-        external_link: "https://ninjapay.in",
-        platform_fee_recipient: ethers.constants.AddressZero,
+        primary_sale_recipient: window.ethers.constants.AddressZero,
+        image: "https://example.com/your-image.png", // Replace with your image URL
+        description: "This is Nin Token", // Replace with your description
+        external_link: "https://ninjapay.in", // Replace with your external link
+        platform_fee_recipient: window.ethers.constants.AddressZero,
         platform_fee_basis_points: 100 // 1%
       },
       "5.0.2", // Specify the version
